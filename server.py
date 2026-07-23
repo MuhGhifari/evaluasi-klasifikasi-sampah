@@ -27,25 +27,20 @@ def chart_data():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/gallery_data')
-def gallery_data():
+cached_gallery_data = None
+models_list = []
+
+def get_base_gallery_data():
+    global cached_gallery_data, models_list
+    if cached_gallery_data is not None:
+        return cached_gallery_data
+        
     conn = get_db_connection()
-    
-    # We want ALL models so we know which models evaluated the files.
-    models = [r['model'] for r in conn.execute("SELECT DISTINCT model FROM wrong_predictions").fetchall()]
-    
-    # history
+    models_list = [r['model'] for r in conn.execute("SELECT DISTINCT model FROM wrong_predictions").fetchall()]
     history = conn.execute("SELECT file_path, class as true_class, chunk_index FROM chunk_history WHERE split='test'").fetchall()
-    
-    # wrongs
     wrongs = conn.execute("SELECT file_path, model, chunk_index, predicted_class FROM wrong_predictions").fetchall()
-    
-    # tags
-    tags = conn.execute("SELECT file_path, tag FROM image_tags").fetchall()
-    
     conn.close()
     
-    # Aggregate
     files = {}
     for h in history:
         fp = h['file_path']
@@ -69,17 +64,10 @@ def gallery_data():
                 files[fp]['predictions'][mod] = {}
             files[fp]['predictions'][mod][w['chunk_index']] = w['predicted_class']
             
-    for t in tags:
-        fp = t['file_path']
-        if fp in files:
-            files[fp]['tags'].append(t['tag'])
-            
-    # Format for JSON
-    result = []
     for fp, info in files.items():
         info['chunks'] = sorted(list(info['chunks']))
         formatted_preds = {}
-        for m in models:
+        for m in models_list:
             formatted_preds[m] = []
             for c in info['chunks']:
                 if m in info['predictions'] and c in info['predictions'][m]:
@@ -88,7 +76,34 @@ def gallery_data():
                     formatted_preds[m].append({'chunk': c, 'status': 'correct', 'predicted_class': info['true_class']})
         info['predictions'] = formatted_preds
         
-        # Check quarantine
+    cached_gallery_data = files
+    return cached_gallery_data
+
+@app.route('/api/gallery_data')
+def gallery_data():
+    files = get_base_gallery_data()
+    
+    conn = get_db_connection()
+    tags = conn.execute("SELECT file_path, tag FROM image_tags").fetchall()
+    conn.close()
+    
+    # Format for JSON and attach tags dynamically without mutating cache
+    result = []
+    result_dict = {}
+    for fp, info in files.items():
+        # Shallow copy to avoid appending tags to the cached object
+        info_copy = info.copy()
+        info_copy['tags'] = []
+        result.append(info_copy)
+        result_dict[fp] = info_copy
+        
+    for t in tags:
+        fp = t['file_path']
+        if fp in result_dict:
+            result_dict[fp]['tags'].append(t['tag'])
+            
+    for info in result:
+        fp = info['file_path']
         local_path = fp
         physical_orig = fp
         physical_quar = os.path.join(QUARANTINE_DIR, fp)
@@ -101,9 +116,8 @@ def gallery_data():
                 local_path = 'quarantine/' + fp
                 
         info['display_path'] = local_path
-        result.append(info)
         
-    return jsonify({'data': result, 'models': models})
+    return jsonify({'data': result, 'models': models_list})
 
 @app.route('/api/tags', methods=['POST'])
 def manage_tags():

@@ -8,6 +8,11 @@ let accuracyChartInstance = null;
 let activeItemIndex = null;
 let activeItem = null;
 
+function formatClass(className) {
+    if (!className) return '';
+    return className.replace(/^\d+_/g, '').replace(/_/g, ' ');
+}
+
 const AVAILABLE_TAGS = [
     "kartun",
     "buram",
@@ -42,6 +47,7 @@ async function loadChartData() {
 
         const models = ['MobileNetV4', 'ResNet18', 'EfficientNet', 'EfficientFormerV2'];
         const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+        const isMobile = window.innerWidth <= 600;
         
         const datasets = accuracyTraces.map((trace, index) => {
             return {
@@ -50,13 +56,13 @@ async function loadChartData() {
                 borderColor: colors[index % colors.length],
                 backgroundColor: colors[index % colors.length],
                 tension: 0.3,
-                borderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6
+                borderWidth: isMobile ? 2 : 3,
+                pointRadius: isMobile ? 4 : 6,
+                pointHoverRadius: isMobile ? 6 : 8
             };
         });
         
-        const labels = accuracyTraces[0].x.map((_, i) => `Iterasi ${i + 1}`);
+        const labels = accuracyTraces[0].x.map((_, i) => isMobile ? `${i + 1}` : `Iterasi ${i + 1}`);
 
         Chart.defaults.color = '#94a3b8';
         Chart.defaults.font.family = "'Outfit', sans-serif";
@@ -129,27 +135,41 @@ function populateFilters() {
     });
 
     const catSelect = document.getElementById('categoryFilter');
+    const wpSelect = document.getElementById('wrongPredictionFilter');
     const categories = new Set();
     allData.forEach(d => categories.add(d.true_class));
+    catSelect.add(new Option('Semua Kategori', 'all'));
     Array.from(categories).sort().forEach(c => {
-        catSelect.add(new Option(c.replace(/_/g, ' '), c));
+        catSelect.add(new Option(formatClass(c), c));
+        wpSelect.add(new Option(formatClass(c), c));
     });
     
     const skSelect = document.getElementById('salah-kategori-select');
     skSelect.innerHTML = '<option value="">-- Pilih --</option>';
     Array.from(categories).sort().forEach(c => {
-        skSelect.add(new Option(c.replace(/_/g, ' '), c));
+        skSelect.add(new Option(formatClass(c), c));
+    });
+    
+    const specificTagSelect = document.getElementById('specificTagFilter');
+    AVAILABLE_TAGS.forEach(t => {
+        specificTagSelect.add(new Option(t, t));
     });
 }
 
 function setupEventListeners() {
-    const filters = ['searchFilter', 'modelFilter', 'chunkFilter', 'categoryFilter', 'statusFilter', 'errorCountFilter', 'tagFilter', 'sortFilter'];
+    const filters = ['searchFilter', 'modelFilter', 'chunkFilter', 'categoryFilter', 'statusFilter', 'errorCountFilter', 'wrongPredictionFilter', 'tagFilter', 'specificTagFilter', 'sortFilter'];
     filters.forEach(id => {
         document.getElementById(id).addEventListener(id === 'searchFilter' ? 'input' : 'change', applyFilters);
     });
     
     document.getElementById('statusFilter').addEventListener('change', (e) => {
-        document.getElementById('errorCountGroup').style.display = (e.target.value === 'wrong') ? 'flex' : 'none';
+        const isWrong = e.target.value === 'wrong';
+        document.getElementById('errorCountGroup').style.display = isWrong ? 'flex' : 'none';
+        document.getElementById('wrongPredictionGroup').style.display = isWrong ? 'flex' : 'none';
+    });
+    
+    document.getElementById('tagFilter').addEventListener('change', (e) => {
+        document.getElementById('specificTagGroup').style.display = (e.target.value === 'tagged') ? 'flex' : 'none';
     });
 
     document.getElementById('prevBtn').addEventListener('click', () => {
@@ -169,6 +189,13 @@ function setupEventListeners() {
         if (modal.classList.contains('active')) {
             if (e.key === 'ArrowRight') nextImage();
             if (e.key === 'ArrowLeft') prevImage();
+            if (e.key === 'Escape') modal.classList.remove('active');
+        }
+    });
+
+    document.getElementById('image-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'image-modal') {
+            e.target.classList.remove('active');
         }
     });
 }
@@ -192,7 +219,9 @@ function applyFilters() {
     const cat = document.getElementById('categoryFilter').value;
     const status = document.getElementById('statusFilter').value;
     const minErr = document.getElementById('errorCountFilter').value;
+    const wpFilter = document.getElementById('wrongPredictionFilter').value;
     const tag = document.getElementById('tagFilter').value;
+    const specificTag = document.getElementById('specificTagFilter').value;
     const sortVal = document.getElementById('sortFilter').value;
     
     filteredData = allData.filter(d => {
@@ -201,23 +230,47 @@ function applyFilters() {
         if (chunk !== 'all' && !d.chunks.includes(parseInt(chunk))) return false;
         if (tag === 'tagged' && d.tags.length === 0) return false;
         if (tag === 'untagged' && d.tags.length > 0) return false;
+        if (tag === 'tagged' && specificTag !== 'all' && !d.tags.includes(specificTag)) return false;
         if (status === 'wrong' && minErr !== 'all' && d.error_count < parseInt(minErr)) return false;
 
         let isModelWrong = false;
         let isModelEvaluated = false;
+        let hasSelectedWrongPrediction = false;
         
         if (model !== 'all') {
             const preds = d.predictions[model] || [];
             const relevantPreds = chunk === 'all' ? preds : preds.filter(p => p.chunk === parseInt(chunk));
             if (relevantPreds.length > 0) isModelEvaluated = true;
             if (relevantPreds.some(p => p.status === 'wrong')) isModelWrong = true;
+            
+            if (wpFilter !== 'all') {
+                if (relevantPreds.some(p => p.status === 'wrong' && p.predicted_class === wpFilter)) {
+                    hasSelectedWrongPrediction = true;
+                }
+            } else {
+                hasSelectedWrongPrediction = true;
+            }
         } else {
             isModelEvaluated = true;
             isModelWrong = d.error_count > 0;
+            
+            if (wpFilter !== 'all') {
+                for (const m in d.predictions) {
+                    const preds = d.predictions[m];
+                    const relevantPreds = chunk === 'all' ? preds : preds.filter(p => p.chunk === parseInt(chunk));
+                    if (relevantPreds.some(p => p.status === 'wrong' && p.predicted_class === wpFilter)) {
+                        hasSelectedWrongPrediction = true;
+                        break;
+                    }
+                }
+            } else {
+                hasSelectedWrongPrediction = true;
+            }
         }
         
         if (status === 'wrong' && !isModelWrong) return false;
         if (status === 'correct' && isModelWrong) return false;
+        if (status === 'wrong' && !hasSelectedWrongPrediction) return false;
         
         return true;
     });
@@ -264,6 +317,7 @@ function renderGallery() {
         let modelsHtml = '';
         const selectedModel = document.getElementById('modelFilter').value;
         const selectedChunk = document.getElementById('chunkFilter').value;
+        const isMobile = window.innerWidth <= 600;
         
         modelsList.forEach(m => {
             const preds = item.predictions[m] || [];
@@ -271,23 +325,38 @@ function renderGallery() {
             const relevantPreds = selectedChunk === 'all' ? preds : preds.filter(p => p.chunk === parseInt(selectedChunk));
             
             const isWrong = relevantPreds.some(p => p.status === 'wrong');
-            const wrongPreds = relevantPreds.filter(p => p.status === 'wrong');
             
-            if (isWrong) {
-                const uniqueWrongs = [...new Set(wrongPreds.map(p => p.predicted_class))].join(', ');
-                modelsHtml += `
-                    <li class="model-item">
-                        <span>${m}</span>
-                        <span class="pred-wrong">❌ ${uniqueWrongs.replace(/_/g, ' ')}</span>
-                    </li>
-                `;
-            } else if (relevantPreds.length > 0) {
-                modelsHtml += `
-                    <li class="model-item">
-                        <span>${m}</span>
-                        <span class="pred-right">✅ ${item.true_class.replace(/_/g, ' ')}</span>
-                    </li>
-                `;
+            if (isMobile) {
+                // Ultra-compact abbreviations for the card view
+                const shortName = m.replace('EfficientFormerV2', 'EF2')
+                                   .replace('EfficientNet', 'EN')
+                                   .replace('MobileNetV4', 'MN4')
+                                   .replace('ResNet18', 'RN18');
+                
+                if (isWrong) {
+                    modelsHtml += `<span style="font-size:0.65rem; padding: 2px 4px; border-radius: 4px; background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); white-space: nowrap;">${shortName} ❌</span>`;
+                } else if (preds.length > 0) {
+                    modelsHtml += `<span style="font-size:0.65rem; padding: 2px 4px; border-radius: 4px; background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); white-space: nowrap;">${shortName} ✅</span>`;
+                }
+            } else {
+                // Detailed view for desktop
+                const wrongPreds = relevantPreds.filter(p => p.status === 'wrong');
+                if (isWrong) {
+                    const uniqueWrongs = [...new Set(wrongPreds.map(p => formatClass(p.predicted_class)))].join(', ');
+                    modelsHtml += `
+                        <li class="model-item">
+                            <span>${m}</span>
+                            <span class="pred-wrong">❌ ${uniqueWrongs}</span>
+                        </li>
+                    `;
+                } else if (preds.length > 0) {
+                    modelsHtml += `
+                        <li class="model-item">
+                            <span>${m}</span>
+                            <span class="pred-right">✅ ${formatClass(item.true_class)}</span>
+                        </li>
+                    `;
+                }
             }
         });
         
@@ -314,18 +383,22 @@ function renderGallery() {
             <div class="card-content">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem; flex-wrap:wrap; gap:5px;">
                     <div style="display:flex; gap:5px; flex-wrap:wrap;">
-                        <span class="badge" style="background:${catBg}; color:${catColor}; border:1px solid ${catBg}">${item.true_class.replace(/_/g, ' ')}</span>
+                        <span class="badge" style="background:${catBg}; color:${catColor}; border:1px solid ${catBg}">${formatClass(item.true_class)}</span>
                         <span class="badge badge-error">${item.error_count} Kesalahan</span>
                     </div>
-                    <span style="font-size:0.8rem; color:var(--text-muted);">Iterasi: ${item.chunks.join(', ')}</span>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px;">Iterasi: ${item.chunks.join(', ')}</div>
                 </div>
-                <h3 class="true-class" style="font-size: 1.2rem; margin-top: 0; margin-bottom: 0.5rem; word-break: break-all;">${fileName}</h3>
-                <div id="tags-${CSS.escape(item.file_path)}" style="margin-bottom: 0.5rem; display:flex; flex-wrap:wrap;">
-                    ${tagsHtml}
-                </div>
+                <h3 class="true-class" style="word-break: break-all; margin: 5px 0;">${fileName}</h3>
+                ${isMobile ? `
+                <div style="display:flex; gap: 4px; flex-wrap:wrap; margin-top: 10px;">
+                    ${modelsHtml}
+                </div>` : `
                 <ul class="model-list">
                     ${modelsHtml}
-                </ul>
+                </ul>`}
+                <div id="tags-${CSS.escape(item.file_path)}" style="margin-top: 0.5rem; display:flex; flex-wrap:wrap;">
+                    ${tagsHtml}
+                </div>
             </div>
         `;
         
@@ -350,10 +423,55 @@ function openModal(item) {
     const modal = document.getElementById('image-modal');
     document.getElementById('modal-image').src = '../' + item.display_path;
     
+    let modelsHtml = '';
+    modelsList.forEach(m => {
+        const preds = item.predictions[m] || [];
+        const isWrong = preds.some(p => p.status === 'wrong');
+        const wrongPreds = preds.filter(p => p.status === 'wrong');
+        
+        // Shorten long model names for compactness
+        const shortName = m.replace('Efficient', 'Eff').replace('MobileNet', 'MobNet');
+        
+        if (isWrong) {
+            const uniqueWrongs = [...new Set(wrongPreds.map(p => formatClass(p.predicted_class)))].join(', ');
+            modelsHtml += `
+                <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; white-space: nowrap;">
+                    <strong style="color: #cbd5e1;">${shortName}:</strong> <span class="pred-wrong">❌ ${uniqueWrongs}</span>
+                </div>
+            `;
+        } else if (preds.length > 0) {
+            modelsHtml += `
+                <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; white-space: nowrap;">
+                    <strong style="color: #cbd5e1;">${shortName}:</strong> <span class="pred-right">✅ Benar</span>
+                </div>
+            `;
+        }
+    });
+
+    let catColor = '#94a3b8'; // default
+    let catBg = 'rgba(148, 163, 184, 0.2)';
+    const lowerCat = item.true_class.toLowerCase();
+    if (lowerCat.includes('recyclable')) {
+        catColor = '#f59e0b'; catBg = 'rgba(245, 158, 11, 0.2)';
+    } else if (lowerCat.includes('organic')) {
+        catColor = '#10b981'; catBg = 'rgba(16, 185, 129, 0.2)';
+    } else if (lowerCat.includes('electronic')) {
+        catColor = '#3b82f6'; catBg = 'rgba(59, 130, 246, 0.2)';
+    }
+
     document.getElementById('modal-info').innerHTML = `
-        <h2 style="margin:0 0 0.5rem 0;">${item.file_path.split('/').pop()}</h2>
+        <h2 style="margin:0 0 0.5rem 0; font-size: 1.5rem; word-break: break-all;">${item.file_path.split('/').pop()}</h2>
+        <div style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom: 10px;">
+            <span class="badge" style="background:${catBg}; color:${catColor}; border:1px solid ${catBg}">${formatClass(item.true_class)}</span>
+            <span class="badge badge-error">${item.error_count} Kesalahan</span>
+        </div>
         <div style="color:var(--text-muted); font-size:0.9rem; margin-bottom:0.5rem;">Path: ${item.file_path}</div>
-        <div style="color:var(--text-muted); font-size:0.9rem;">Dievaluasi pada Iterasi: ${item.chunks.join(', ')}</div>
+        <div style="color:var(--text-muted); font-size:0.9rem; margin-bottom:1rem;">Dievaluasi pada Iterasi: ${item.chunks.join(', ')}</div>
+        <div style="margin-bottom: 15px; width: 100%;">
+            <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                ${modelsHtml}
+            </div>
+        </div>
     `;
     
     // Update navigation buttons

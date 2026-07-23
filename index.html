@@ -26,18 +26,30 @@
                 <div class="glass-panel chart-container">
                     <h2>Tren Akurasi</h2>
                     <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:1rem;">Klik titik data untuk memfilter galeri berdasarkan Model dan Iterasi.</p>
-                    <div style="height: 300px;">
-                        <canvas id="accuracyChart"></canvas>
+                    <div style="width: 100%; overflow-x: auto; padding-bottom: 10px;">
+                        <div style="height: 300px; min-width: 600px;">
+                            <canvas id="accuracyChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </section>
 
             <!-- Filters -->
             <section class="filters-section glass-panel">
-                <div class="filter-group">
+                <div class="filter-group" style="flex: 3; min-width: 250px;">
                     <label>Cari:</label>
                     <input type="text" id="searchFilter" placeholder="Cari path file...">
                 </div>
+                <div class="filter-group" style="flex: 1; min-width: 150px;">
+                    <label>Urutkan:</label>
+                    <select id="sortFilter">
+                        <option value="name_asc">Nama File (A-Z)</option>
+                        <option value="name_desc">Nama File (Z-A)</option>
+                        <option value="errors_desc">Kesalahan (Terbanyak)</option>
+                        <option value="errors_asc">Kesalahan (Sedikit)</option>
+                    </select>
+                </div>
+                <div class="desktop-break" style="flex-basis: 100%; height: 0; margin: 0;"></div>
                 <div class="filter-group">
                     <label>Model:</label>
                     <select id="modelFilter"><option value="all">Semua Model</option></select>
@@ -68,6 +80,12 @@
                         <option value="1">1+ Kesalahan</option>
                     </select>
                 </div>
+                <div class="filter-group" id="wrongPredictionGroup" style="display:none;">
+                    <label>Hasil Prediksi:</label>
+                    <select id="wrongPredictionFilter">
+                        <option value="all">Semua Kategori</option>
+                    </select>
+                </div>
                 <div class="filter-group">
                     <label>Tag:</label>
                     <select id="tagFilter">
@@ -76,13 +94,10 @@
                         <option value="untagged">Tanpa Tag</option>
                     </select>
                 </div>
-                <div class="filter-group">
-                    <label>Urutkan:</label>
-                    <select id="sortFilter">
-                        <option value="name_asc">Nama File (A-Z)</option>
-                        <option value="name_desc">Nama File (Z-A)</option>
-                        <option value="errors_desc">Kesalahan Terbanyak</option>
-                        <option value="errors_asc">Kesalahan Paling Sedikit</option>
+                <div class="filter-group" id="specificTagGroup" style="display:none;">
+                    <label>Pilih Tag:</label>
+                    <select id="specificTagFilter">
+                        <option value="all">Semua Tag</option>
                     </select>
                 </div>
             </section>
@@ -107,9 +122,9 @@
 
     <!-- Modal -->
     <div id="image-modal" class="modal">
+        <span class="close-modal" id="close-modal-btn">&times;</span>
         <button id="modal-prev-btn" class="modal-nav-btn modal-prev" title="Previous Image (Left Arrow)">&#10094;</button>
         <div class="modal-content glass-panel" style="max-width: 800px;">
-            <span class="close-modal">&times;</span>
             <div class="modal-body" style="display:flex; flex-direction:column; align-items:center;">
                 <img id="modal-image" src="" alt="Enlarged Image" style="max-height: 50vh;">
                 <div style="width: 100%; max-width: 600px;">

@@ -1,3 +1,7 @@
+* {
+    box-sizing: border-box;
+}
+
 :root {
     --bg-color: #0f172a;
     --card-bg: rgba(30, 41, 59, 0.7);
@@ -113,6 +117,8 @@ body {
     flex: 1;
     min-width: 150px;
 }
+
+
 
 .filter-group label {
     font-size: 0.9rem;
@@ -241,12 +247,11 @@ body {
     color: var(--text-muted);
 }
 
-/* Modal */
 .modal {
     display: none;
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.8);
+    background: rgba(15, 23, 42, 0.95);
     z-index: 1000;
     align-items: center;
     justify-content: center;
@@ -265,14 +270,25 @@ body {
 }
 
 .close-modal {
-    position: absolute;
-    top: 10px; right: 15px;
-    font-size: 1.5rem;
+    color: #f8fafc;
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    font-size: 32px;
+    font-weight: bold;
     cursor: pointer;
-    color: var(--text-muted);
+    z-index: 1100;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
-.close-modal:hover { color: white; }
+.close-modal:hover { background: rgba(220, 38, 38, 0.8); }
 
 .modal-body { padding: 1.5rem; }
 
@@ -322,20 +338,168 @@ body {
 }
 
 .modal-nav-btn {
-    background: transparent;
+    background: rgba(0, 0, 0, 0.3);
     border: none;
-    color: rgba(255,255,255,0.5);
-    font-size: 4rem;
+    color: white;
+    font-size: 3rem;
     cursor: pointer;
-    padding: 20px;
-    transition: color 0.2s;
+    padding: 15px 10px;
+    transition: background 0.2s;
     user-select: none;
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1010;
+    border-radius: 5px;
 }
 
 .modal-nav-btn:hover {
-    color: white;
+    background: rgba(0, 0, 0, 0.8);
 }
 
+.modal-prev { left: 10px; }
+.modal-next { right: 10px; }
+
 @media (max-width: 900px) {
-    .modal-nav-btn { display: none; }
+    .modal-content {
+        margin: 5% auto;
+        width: 95%;
+        padding: 1rem;
+    }
+    
+    .modal-nav-btn {
+        font-size: 2rem;
+        padding: 10px 5px;
+    }
+    
+    .modal-prev { left: 0px; border-radius: 0 5px 5px 0; }
+    .modal-next { right: 0px; border-radius: 5px 0 0 5px; }
+}
+
+@media (max-width: 600px) {
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 1rem;
+    }
+    
+    .desktop-break {
+        display: none;
+    }
+    
+    .header-content h1 {
+        font-size: 1.5rem;
+    }
+    
+    .filters-section {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        padding: 15px;
+    }
+    
+    .filter-group {
+        width: auto;
+        min-width: 0;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+    
+    /* Make the search bar span the entire width */
+    .filter-group:first-child {
+        grid-column: 1 / -1;
+    }
+    
+    .filter-group label {
+        margin-bottom: 0;
+        font-size: 0.8rem;
+    }
+    
+    .filter-group input, .filter-group select {
+        width: 100%;
+        padding: 8px;
+        font-size: 0.85rem;
+    }
+    
+    .image-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    
+    .card-content {
+        padding: 0.8rem;
+    }
+    
+    .true-class {
+        display: none;
+    }
+    
+    .badge {
+        font-size: 0.65rem;
+        padding: 0.15rem 0.4rem;
+    }
+    
+    .card-img {
+        height: auto;
+        aspect-ratio: 1;
+    }
+    
+    .charts-section h2 {
+        font-size: 1.2rem;
+    }
+    
+    .modal-body {
+        padding: 0;
+    }
+    
+    .modal-content {
+        margin: 0;
+        width: 100%;
+        min-height: 100vh;
+        border-radius: 0;
+        padding: 15px;
+        padding-top: 70px !important; /* clear space for X */
+        padding-bottom: 80px !important; /* clear space for bottom bar */
+    }
+    
+    #modal-image {
+        width: 100%;
+        height: auto;
+        max-height: 40vh;
+        object-fit: contain;
+    }
+    
+    .modal-nav-btn {
+        position: fixed;
+        bottom: 0;
+        top: auto;
+        transform: none;
+        width: 50%;
+        height: 60px;
+        border-radius: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 2rem;
+        background: #0f172a;
+        border: none;
+        border-top: 1px solid var(--accent);
+        z-index: 1200;
+        padding: 0;
+    }
+    
+    .modal-prev { left: 0; border-right: 1px solid var(--accent); }
+    .modal-next { right: 0; }
+    
+    .tag-buttons {
+        justify-content: stretch;
+    }
+    
+    .tag-btn {
+        flex: 1 1 45%;
+        padding: 10px;
+        font-size: 0.85rem;
+    }
 }
