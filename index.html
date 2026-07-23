@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unified Misclassification Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="glass-panel header">
+            <div class="header-content">
+                <h1>Dashboard Kesalahan Klasifikasi</h1>
+                <p>Analisis tren, eksplorasi kesalahan, dan tandai gambar</p>
+            </div>
+            <div class="header-stats">
+                <button id="export-btn" class="btn export-btn">Ekspor Anotasi</button>
+            </div>
+        </header>
+
+        <main class="dashboard">
+            <!-- Accuracy Graph -->
+            <section class="charts-section">
+                <div class="glass-panel chart-container">
+                    <h2>Tren Akurasi</h2>
+                    <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:1rem;">Klik titik data untuk memfilter galeri berdasarkan Model dan Iterasi.</p>
+                    <div style="height: 300px;">
+                        <canvas id="accuracyChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Filters -->
+            <section class="filters-section glass-panel">
+                <div class="filter-group">
+                    <label>Cari:</label>
+                    <input type="text" id="searchFilter" placeholder="Cari path file...">
+                </div>
+                <div class="filter-group">
+                    <label>Model:</label>
+                    <select id="modelFilter"><option value="all">Semua Model</option></select>
+                </div>
+                <div class="filter-group">
+                    <label>Iterasi:</label>
+                    <select id="chunkFilter"><option value="all">Semua Iterasi</option></select>
+                </div>
+                <div class="filter-group">
+                    <label>Kategori:</label>
+                    <select id="categoryFilter"><option value="all">Semua Kategori</option></select>
+                </div>
+                <div class="filter-group">
+                    <label>Status Prediksi:</label>
+                    <select id="statusFilter">
+                        <option value="all">Semua</option>
+                        <option value="correct">Benar Prediksi</option>
+                        <option value="wrong">Salah Prediksi</option>
+                    </select>
+                </div>
+                <div class="filter-group" id="errorCountGroup" style="display:none;">
+                    <label>Min Kesalahan:</label>
+                    <select id="errorCountFilter">
+                        <option value="all">Semua Jumlah</option>
+                        <option value="4">4 Kesalahan</option>
+                        <option value="3">3+ Kesalahan</option>
+                        <option value="2">2+ Kesalahan</option>
+                        <option value="1">1+ Kesalahan</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Tag:</label>
+                    <select id="tagFilter">
+                        <option value="all">Semua Item</option>
+                        <option value="tagged">Memiliki Tag</option>
+                        <option value="untagged">Tanpa Tag</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Urutkan:</label>
+                    <select id="sortFilter">
+                        <option value="name_asc">Nama File (A-Z)</option>
+                        <option value="name_desc">Nama File (Z-A)</option>
+                        <option value="errors_desc">Kesalahan Terbanyak</option>
+                        <option value="errors_asc">Kesalahan Paling Sedikit</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- Gallery -->
+            <section class="gallery-section glass-panel">
+                <div class="gallery-header">
+                    <h2>Galeri</h2>
+                    <p id="statsDisplay">Memuat...</p>
+                </div>
+                <div id="image-gallery" class="image-grid">
+                    <div class="loading-state">Memuat data dari database...</div>
+                </div>
+                <div class="pagination">
+                    <button id="prevBtn" class="btn" disabled>Sebelumnya</button>
+                    <span id="page-info">Halaman 1</span>
+                    <button id="nextBtn" class="btn" disabled>Selanjutnya</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div id="image-modal" class="modal">
+        <button id="modal-prev-btn" class="modal-nav-btn modal-prev" title="Previous Image (Left Arrow)">&#10094;</button>
+        <div class="modal-content glass-panel" style="max-width: 800px;">
+            <span class="close-modal">&times;</span>
+            <div class="modal-body" style="display:flex; flex-direction:column; align-items:center;">
+                <img id="modal-image" src="" alt="Enlarged Image" style="max-height: 50vh;">
+                <div style="width: 100%; max-width: 600px;">
+                    <div class="modal-info" id="modal-info"></div>
+                    
+                    <div class="tagging-section">
+                        <h3>Berikan Tag</h3>
+                        <div id="modal-tags" class="tag-buttons"></div>
+                        
+                        <div id="salah-kategori-container" style="display:none; margin-top:15px; padding-top:15px; border-top:1px solid rgba(255,255,255,0.1);">
+                            <label style="display:block; margin-bottom:5px; font-weight:500;">Pilih Kategori yang Benar:</label>
+                            <div style="display:flex; gap:10px;">
+                                <select id="salah-kategori-select" style="flex-grow:1; padding:8px; border-radius:5px; background:rgba(15,23,42,0.6); color:white; border:1px solid var(--accent);"></select>
+                                <button id="salah-kategori-save" class="btn" style="background:var(--success); color:white;">Simpan</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button id="modal-next-btn" class="modal-nav-btn modal-next" title="Next Image (Right Arrow)">&#10095;</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
