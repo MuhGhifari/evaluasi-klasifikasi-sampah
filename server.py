@@ -1,5 +1,4 @@
 import sqlite3
-import pandas as pd
 from flask import Flask, request, jsonify, send_from_directory
 import os
 import shutil
